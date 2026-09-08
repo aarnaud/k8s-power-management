@@ -1,0 +1,15 @@
+# Nodes are cluster-scoped, so this must be a ClusterRole, not a
+# namespaced Role. `patch` on plain `nodes` is enough for annotation
+# updates -- the agent never touches the `nodes/status` subresource, so
+# that resource is deliberately not granted here.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: power-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch"]

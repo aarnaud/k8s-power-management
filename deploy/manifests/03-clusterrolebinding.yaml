@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: power-agent
+subjects:
+  - kind: ServiceAccount
+    name: power-agent
+    namespace: cpu-power-system
+roleRef:
+  kind: ClusterRole
+  name: power-agent
+  apiGroup: rbac.authorization.k8s.io

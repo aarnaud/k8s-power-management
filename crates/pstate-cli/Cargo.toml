@@ -1,0 +1,11 @@
+[package]
+name = "pstate-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Local debug/verification CLI for cpu-power-hal, no Kubernetes required"
+
+[dependencies]
+clap = { version = "4.6.6", features = ["derive"] }
+cpu-power-hal = { path = "../cpu-power-hal" }

@@ -1,0 +1,15 @@
+# The DaemonSet needs a writable hostPath mount of /sys/devices/system/cpu,
+# which the "restricted"/"baseline" Pod Security Admission levels disallow
+# outright regardless of the container's own securityContext. This
+# namespace is explicitly opted into "privileged" enforcement for that
+# reason -- if your cluster relies on a different admission mechanism
+# (e.g. an OPA/Kyverno policy), you'll need an equivalent exemption there
+# instead.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cpu-power-system
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

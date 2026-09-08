@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: power-agent
+  namespace: cpu-power-system
+  labels:
+    app.kubernetes.io/name: power-agent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: power-agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: power-agent
+    spec:
+      serviceAccountName: power-agent
+      # Blanket-tolerate everything so this runs on all 7 nodes, including
+      # any control-plane-tainted one -- power management is wanted
+      # cluster-wide, not just on worker nodes.
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: power-agent
+          # Built and pushed by .github/workflows/docker-publish.yml on
+          # every push to main. GHCR packages are private by default even
+          # on a public repo -- either flip the package to public in
+          # GitHub's package settings, or create an imagePullSecret in
+          # this namespace and reference it below via imagePullSecrets.
+          image: ghcr.io/aarnaud/k8s-power-management:latest
+          imagePullPolicy: Always
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: PROFILE_LABEL_KEY
+              value: "cpu-power.io/profile"
+            - name: TURBO_LABEL_KEY
+              value: "cpu-power.io/turbo"
+            - name: RESYNC_INTERVAL_SECONDS
+              value: "300"
+            - name: METRICS_ADDR
+              value: "0.0.0.0:9090"
+            - name: LOG_FORMAT
+              value: "json"
+            - name: RUST_LOG
+              value: "info"
+          ports:
+            - name: metrics
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          securityContext:
+            # Writing energy_performance_preference/scaling_governor is
+            # gated on plain Unix file permissions on the host, not a
+            # Linux capability -- root is required, but no capability
+            # beyond that grants it, so we drop everything else.
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            # This scoped, writable hostPath mount is what overrides the
+            # container's default read-only sysfs mount for this specific
+            # subtree, without requiring `privileged: true` on typical
+            # Ubuntu/Debian node OSes. If writes fail with EACCES despite
+            # running as root (seen under stricter AppArmor/SELinux/kernel
+            # lockdown configs), fall back to `privileged: true` on this
+            # container as a documented troubleshooting step.
+            - name: cpu-sysfs
+              mountPath: /sys/devices/system/cpu
+      volumes:
+        - name: cpu-sysfs
+          hostPath:
+            path: /sys/devices/system/cpu
+            type: Directory
