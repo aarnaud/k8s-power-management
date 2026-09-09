@@ -138,7 +138,7 @@ impl Runtime {
             .store(now_unix(), Ordering::Relaxed);
 
         let nodes: Api<Node> = Api::all(self.client.clone());
-        if let Err(e) = status::patch_status(&nodes, &self.config.node_name, &report).await {
+        if let Err(e) = status::patch_status(&nodes, node, &report).await {
             warn!(error = %e, "failed to patch node status annotations");
         }
         status::emit_events(recorder, node, &report).await;

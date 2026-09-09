@@ -69,14 +69,20 @@ kubectl label node <amd-framework-desktop> \
 
 ## Status surfaced back on the Node
 
-After each reconcile, the agent patches these annotations (JSON merge
-patch on `.metadata.annotations` only — no `nodes/status` RBAC needed):
+When they change, the agent patches these annotations (JSON merge patch
+on `.metadata.annotations` only — no `nodes/status` RBAC needed):
 
 - `cpu-power.io/applied-profile`
 - `cpu-power.io/applied-turbo` — `enabled` / `disabled` / `unmanaged` / `unsupported`
 - `cpu-power.io/backend` — `intel_epp` / `amd_epp` / `unknown_epp` / `governor_fallback` / `unsupported`
 - `cpu-power.io/status` — `ok` / `invalid_label` / `unsupported` / `error`
-- `cpu-power.io/last-reconcile-time`
+
+The patch is skipped entirely when these values already match what's on
+the Node — deliberately, since this agent watches its own Node, and a
+patch that always changed something (e.g. a timestamp) would re-trigger
+its own watch stream forever. "When did this last run" is answered by the
+`power_agent_last_reconcile_timestamp_seconds` Prometheus metric instead,
+not a Node annotation.
 
 Both label keys and the resync interval are configurable via the
 `PROFILE_LABEL_KEY`, `TURBO_LABEL_KEY`, and `RESYNC_INTERVAL_SECONDS`
